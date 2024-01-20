@@ -32,7 +32,8 @@ internal class Program
         }
 
         app.UseHttpsRedirection()
-            .UseStaticFiles();
+            .UseStaticFiles()
+            .UseAntiforgery();
 
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode()
