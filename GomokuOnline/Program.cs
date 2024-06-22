@@ -2,6 +2,7 @@ using GomokuOnline.Components;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using MudBlazor.Services;
 
 namespace GomokuOnline;
 
@@ -12,7 +13,8 @@ internal class Program
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
         // Add services to the container.
-        builder.Services.AddRazorComponents()
+        builder.Services.AddMudServices()
+            .AddRazorComponents()
             .AddInteractiveServerComponents()
             .AddInteractiveWebAssemblyComponents();
 
