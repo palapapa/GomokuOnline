@@ -1,4 +1,5 @@
 ﻿@page "/"
+@inject IJsConsole jsConsole
 
 <PageTitle>Gomoku Online</PageTitle>
 
@@ -7,6 +8,14 @@
         <MudText Typo="Typo.h1">Gomoku Online</MudText>
     </div>
     <div class="d-flex justify-center align-start flex-1">
-        <MudButton Variant="Variant.Filled" Color="Color.Primary">Find Match</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StartMatching">Find Match</MudButton>
     </div>
 </div>
+
+@code
+{
+    private void StartMatching(MouseEventArgs args)
+    {
+        jsConsole.Log(123);
+    }
+}
