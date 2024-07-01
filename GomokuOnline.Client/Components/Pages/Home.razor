@@ -1,5 +1,6 @@
 ﻿@page "/"
 @inject IJsConsole jsConsole
+@inject NavigationManager navigationManager
 
 <PageTitle>Gomoku Online</PageTitle>
 
@@ -14,8 +15,15 @@
 
 @code
 {
-    private void StartMatching(MouseEventArgs args)
+    private HubConnection? hubConnection;
+
+    private async Task StartMatching(MouseEventArgs args)
     {
-        jsConsole.Log(123);
+        if (hubConnection is not null)
+        {
+            return;
+        }
+        hubConnection = new HubConnectionBuilder().WithUrl(navigationManager.ToAbsoluteUri("/gomoku")).Build();
+        await hubConnection.StartAsync();
     }
 }
