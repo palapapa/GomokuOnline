@@ -1,6 +1,8 @@
 ﻿@page "/"
-@inject IJsConsole jsConsole
+@inject IJSRuntime jsRuntime
+@inject IResizeListener resizeListener
 @inject NavigationManager navigationManager
+@implements IAsyncDisposable
 
 <PageTitle>Gomoku Online</PageTitle>
 
@@ -8,14 +10,52 @@
     <div class="d-flex justify-center align-end flex-1">
         <MudText Typo="Typo.h1">Gomoku Online</MudText>
     </div>
-    <div class="d-flex justify-center align-start flex-1">
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="hubConnection is null">Find Match</MudButton>
+    <div class="d-flex justify-center align-start flex-1 gap-4">
+        <!--
+            Each button is wrapped with two divs. The first one is used as a position marker that doesn't get translated, so that its position can be used to recalculate the position of the button on window resize.
+            The second div is used because scoped CSS doesn't by default apply to child components, so the class has to be applied on the second wrapper div.
+        -->
+        <div @ref="quickMatchButton">
+            <div class="OnClickTransition" style="@(quickMatchButtonActivated ? clickedButtonStyle : notClickedButtonStyle)">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="hubConnection is null || (!string.IsNullOrEmpty(notClickedButtonStyle) && !quickMatchButtonActivated)" OnClick="QuickMatchOnClick">Quick Match</MudButton>
+            </div>
+        </div>
+        <div @ref="createMatchButton">
+            <div class="OnClickTransition" style="@(createMatchButtonActivated ? clickedButtonStyle : notClickedButtonStyle)">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="hubConnection is null || (!string.IsNullOrEmpty(notClickedButtonStyle) && !createMatchButtonActivated)" OnClick="CreateMatchOnClick">Create Match</MudButton>
+            </div>
+        </div>
+        <div @ref="listMatchesButton">
+            <div class="OnClickTransition" style="@(listMatchesButtonActivated ? clickedButtonStyle : notClickedButtonStyle)">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="hubConnection is null || (!string.IsNullOrEmpty(notClickedButtonStyle) && !listMatchesButtonActivated)" OnClick="ListMatchesOnClick">List Matches</MudButton>
+            </div>
+        </div>
     </div>
+</div>
+
+<div class="absolute" id="ServerWasmIndicator">
+    <MudText Typo="Typo.body1" Align="Align.Right">Currently running on @(OperatingSystem.IsBrowser() ? "WASM" : "the server")</MudText>
 </div>
 
 @code
 {
     private HubConnection? hubConnection;
+    private IJSObjectReference? htmlElementMemberInvokersModule;
+    private ElementReference quickMatchButton;
+    private ElementReference createMatchButton;
+    private ElementReference listMatchesButton;
+
+    /// <summary>
+    /// One of the three buttons. This is used so that the window resize event handler can know which button's position to recalculate. This is <see langword="null"/> if none of the three buttons has ever been clicked.
+    /// </summary>
+    private ElementReference? buttonClicked;
+
+    // "Activated" means the button has been clicked, which can be deactivated by clicking it again. It doesn't mean the button is enabled.
+    private bool quickMatchButtonActivated;
+    private bool createMatchButtonActivated;
+    private bool listMatchesButtonActivated;
+    private string clickedButtonStyle = "";
+    private string notClickedButtonStyle = "";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -23,11 +63,87 @@
         {
             return;
         }
+        resizeListener.OnResized += WindowResized;
+        htmlElementMemberInvokersModule = await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./HtmlElementMemberInvokers.js");
         hubConnection = new HubConnectionBuilder().WithUrl(navigationManager.ToAbsoluteUri("/gomoku")).Build();
         await hubConnection.StartAsync();
         if (firstRender)
         {
             StateHasChanged();
         }
+    }
+
+    private async Task QuickMatchOnClick()
+    {
+        quickMatchButtonActivated = !quickMatchButtonActivated;
+        await ChangeButtonPositions(quickMatchButton, quickMatchButtonActivated);
+    }
+
+    private async Task CreateMatchOnClick()
+    {
+        createMatchButtonActivated = !createMatchButtonActivated;
+        await ChangeButtonPositions(createMatchButton, createMatchButtonActivated);
+    }
+
+    private async Task ListMatchesOnClick()
+    {
+        listMatchesButtonActivated = !listMatchesButtonActivated;
+        await ChangeButtonPositions(listMatchesButton, listMatchesButtonActivated);
+    }
+
+    /// <param name="buttonClicked">The button that was clicked.</param>
+    /// <param name="isActivating">Whether this click is activating a button. If <see langword="false"/>, then all three buttons return to their original positions.</param>
+    private async Task ChangeButtonPositions(ElementReference buttonClicked, bool isActivating)
+    {
+        if (!isActivating)
+        {
+            notClickedButtonStyle = "";
+            return;
+        }
+        notClickedButtonStyle = new StyleBuilder()
+            .AddStyle("transform", "translateY(100%)")
+            .AddStyle("opacity", "0").Build();
+        this.buttonClicked = buttonClicked;
+        await SetClickedButtonStyle(buttonClicked);
+    }
+
+    private async Task SetClickedButtonStyle(ElementReference buttonClicked)
+    {
+        DomRect rect = await GetBoundingClientRect(buttonClicked);
+        clickedButtonStyle = new StyleBuilder()
+            .AddStyle("transform", $"translate(calc(20vw - {rect.X}px), calc(20vh - {rect.Y}px))")
+            .Build();
+    }
+
+    private async ValueTask<DomRect> GetBoundingClientRect(ElementReference element)
+    {
+        if (htmlElementMemberInvokersModule is null)
+        {
+            throw new InvalidOperationException($"{nameof(htmlElementMemberInvokersModule)} has not been initialized yet");
+        }
+        return await htmlElementMemberInvokersModule.InvokeAsync<DomRect>("GetBoundingClientRect", element);
+    }
+
+    /// <summary>
+    /// The position of the buttons changes on window resize, so the translation required to move them to the set position needs to be recalculated using this event handler.
+    /// </summary>
+    private async void WindowResized(object? sender, BrowserWindowSize windowSize)
+    {
+        /*
+         * The resize event also fires on page load, when no element has been assigned to buttonClicked yet, so this check is required so that the JS function doesn't throw an exception.
+         * Note that buttonClicked doesn't get assigned null when a button has been deactivated. This is fine because clickedButtonStyle doesn't get applied to deactivated buttons anyway.
+         */
+        if (buttonClicked is null)
+        {
+            return;
+        }
+        await SetClickedButtonStyle(buttonClicked.GetValueOrDefault());
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await (htmlElementMemberInvokersModule?.DisposeAsync() ?? ValueTask.CompletedTask);
+        resizeListener.OnResized -= WindowResized;
     }
 }

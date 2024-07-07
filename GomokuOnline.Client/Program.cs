@@ -12,8 +12,7 @@ internal class Program
     private static async Task Main(string[] args)
     {
         WebAssemblyHostBuilder builder = WebAssemblyHostBuilder.CreateDefault(args);
-        builder.Services.AddSharedServices()
-            .AddMudServices();
+        builder.Services.AddSharedServices();
 
         await builder.Build().RunAsync();
     }

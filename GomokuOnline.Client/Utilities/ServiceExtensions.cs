@@ -1,5 +1,7 @@
 using GomokuOnline.Client.Services;
 using Microsoft.Extensions.DependencyInjection;
+using MudBlazor.Services;
+using BlazorPro.BlazorSize;
 
 namespace GomokuOnline.Client.Utilities;
 
@@ -13,5 +15,5 @@ public static class ServiceExtensions
     /// </summary>
     /// <param name="services">The <see cref="IServiceCollection"/> to register the services to.</param>
     /// <returns><paramref name="services"/></returns>
-    public static IServiceCollection AddSharedServices(this IServiceCollection services) => services.AddScoped<IJsConsole, JsConsole>();
+    public static IServiceCollection AddSharedServices(this IServiceCollection services) => services.AddScoped<IJsConsole, JsConsole>().AddMudServices().AddResizeListener();
 }
