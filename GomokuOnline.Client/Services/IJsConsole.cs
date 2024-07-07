@@ -6,7 +6,7 @@ namespace GomokuOnline.Client.Services;
 /// <summary>
 /// Represents a browser console.
 /// </summary>
-public interface IJsConsole
+interface IJsConsole
 {
     /// <summary>
     /// Logs an object to the browser console.
