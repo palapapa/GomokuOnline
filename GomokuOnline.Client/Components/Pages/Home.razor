@@ -2,6 +2,7 @@
 @inject IJSRuntime jsRuntime
 @inject IResizeListener resizeListener
 @inject NavigationManager navigationManager
+@inject IWebAssemblyHostEnvironment environment
 @implements IAsyncDisposable
 
 <PageTitle>Gomoku Online</PageTitle>
@@ -65,7 +66,19 @@
         }
         resizeListener.OnResized += WindowResized;
         htmlElementMemberInvokersModule = await jsRuntime.InvokeAsync<IJSObjectReference>("import", "./HtmlElementMemberInvokers.js");
-        hubConnection = new HubConnectionBuilder().WithUrl(navigationManager.ToAbsoluteUri("/gomoku")).Build();
+        hubConnection = new HubConnectionBuilder().WithUrl(navigationManager.ToAbsoluteUri("/gomoku"),
+            options =>
+            {
+                if (environment.IsDevelopment())
+                {
+                    options.HttpMessageHandlerFactory = _ =>
+                        new HttpClientHandler
+                        {
+                            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+                        };
+                }
+            })
+            .Build();
         await hubConnection.StartAsync();
         if (firstRender)
         {

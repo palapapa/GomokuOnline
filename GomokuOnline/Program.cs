@@ -5,6 +5,8 @@ using Microsoft.Extensions.Hosting;
 using MudBlazor.Services;
 using GomokuOnline.Client.Utilities;
 using GomokuOnline.Hubs;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using GomokuOnline.Services;
 
 namespace GomokuOnline;
 
@@ -14,6 +16,7 @@ internal class Program
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
         builder.Services.AddSharedServices()
+            .AddScoped<IWebAssemblyHostEnvironment, ServerWebAssemblyHostEnvironment>()
             .AddRazorComponents()
             .AddInteractiveServerComponents()
             .AddInteractiveWebAssemblyComponents();
